@@ -1,0 +1,33 @@
+{
+  "name": "Reload-Lab/jquery-tablePagination",
+  "description": "Simple tables pagination solution for use with jQuery and Bootstrap 4",
+  "main": "dist/jquery.tablePagination.js",
+  "authors": [
+    "Reload - Laboratorio Multimediale <info@reloadlab.it> (https://www.reloadlab.it)"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "jquery",
+    "bootstrap4",
+    "table pagination"
+  ],
+  "homepage": "https://github.com/Reload-Lab/jquery-tablePagination",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Reload-Lab/jquery-tablePagination.git"
+  },
+  "dependencies": {
+    "jquery": "^3.7.0",
+	"jquery-migrate-official": "1.4.1",
+    "bootstrap": "4.6.2",
+	"font-awesome": "4.7.0",
+	"jquery-babbq": "1.3.1"
+  }
+}
