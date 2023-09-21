@@ -1,6 +1,17 @@
-// JavaScript Document
-
+/*!
+ * jQuery tablePagination Plugin
+ * https://github.com/Reload-Lab/jquery-tablePagination
+ *
+ * @updated September 21, 2023
+ * @version 1.0.0
+ *
+ * @author Domenico Gigante <domenico.gigante@reloadlab.it>
+ * @copyright (c) 2023 Reload Laboratorio Multimediale <info@reloadlab.it> (https://www.reloadlab.it)
+ * @license MIT
+ */
+ 
 (function($){
+	"use strict";
 	
 	$.fn.tablePagination = function()
 	{
@@ -10,7 +21,8 @@
 			$this = this;
 		
 		// Html tags and css class
-		var PAGES_TAG = '<ul>',
+		var CNT_CLASS = 'tpContainer',
+			PAGES_TAG = '<ul>',
 			PAGES_CLASS = 'pagination',
 			CTRL_TAG = '<div>',
 			CTRL_CLASS = 'ctrl-bar',
@@ -35,11 +47,14 @@
 				currentPage: 0, // Actual page
 				numRowsPage: 10, // Num rows per page
 				maxShowedPages: 10, // Max pages to show in control bar
-				prev: '&lt;', // Prev text/html
-				next: '&gt;', // Next text/html
+				prev: '<i class="fa fa-angle-double-left" aria-hidden="true"></i>', // Prev text/html
+				next: '<i class="fa fa-angle-double-right" aria-hidden="true"></i>', // Next text/html
+				countPages: true, // Count pages enabled
 				countText: '<b>[t]</b> record trovati - pagina <b>[x]</b> di <b>[y]</b>', // count pages template
 				selectNumRowsPage: true, // Select enabled
-				selectOptions: [10, 25, 50, 100] // Select options
+				selectOptions: [10, 25, 50, 100, 'Tutte'], // Select options
+				selectTitle: 'Numero di righe per pagina', // Select title attribute
+				useHash: true // use hashchange event and back button
 			}, arguments[0]);
 		} 
 		
@@ -53,7 +68,6 @@
 		if(typeof arguments[1] == 'object' 
 			&& arguments[1] instanceof jQuery
 		){
-			
 			$subset = arguments[1]; 
 		}
 
@@ -64,7 +78,7 @@
 			// Init function
 			that._init = function()
 			{
-				var $table = $(this), // html table
+				var $table = $(this), // jquery table
 					id = $table.attr('id'), // table ID
 					$cnt = $("[data-tp-target='#" + id + "']"); // control bar container
 				
@@ -73,6 +87,9 @@
 					
 					return false;
 				}
+				
+				// Set css class to container
+				$cnt.addClass(CNT_CLASS);
 				
 				// Set configuration in data attribute
 				$table.data('tp', $.extend({}, defaults))
@@ -83,7 +100,7 @@
 					.appendTo($cnt);
 				
 				// Append control bar to container
-				$ctrl = $(CTRL_TAG).addClass(CTRL_CLASS)
+				var $ctrl = $(CTRL_TAG).addClass(CTRL_CLASS)
 					.appendTo($cnt);
 				
 				// Append pagination to control bar
@@ -95,9 +112,9 @@
 					.appendTo($ctrl);
 				
 				// Bind custom event to $table
-				$table.bind('paginate', function()
+				$table.bind('paginate', function(e)
 				{
-					var $table = $(this), // html table
+					var $table = $(this), // jquery table
 						id = $table.attr('id'), // table ID
 						options = $table.data('tp'), // get configuration
 						$cnt = $("[data-tp-target='#" + id + "']"); // control bar container
@@ -112,24 +129,32 @@
 					if(options.subset){
 						
 						options.subset
-							.hide()
+							.addClass('tpHidden')
 							.slice((options.currentPage * options.numRowsPage), ((options.currentPage + 1) * options.numRowsPage))
-							.show();
+							.removeClass('tpHidden');
 					} else{
 						
 						$table.find('tbody tr')
-							.hide()
+							.addClass('tpHidden')
 							.slice((options.currentPage * options.numRowsPage), ((options.currentPage + 1) * options.numRowsPage))
-							.show();
+							.removeClass('tpHidden');
 					}
 					
-					// SET COUNTER
-					$cnt.find('.' + COUNTPAGES_CLASS)
-						.html(options.countText
-							.replace('[t]', options.numRows)
-							.replace('[x]', (options.currentPage + 1))
-							.replace('[y]', options.numPages)
-						);
+					// Manage count pages
+					var $countPages = $cnt.find('.' + COUNTPAGES_CLASS)
+						.hide()
+						.empty();
+					
+					// Set count pages
+					if(options.countPages){
+						
+						$countPages.show()
+							.html(options.countText
+								.replace('[t]', options.numRows)
+								.replace('[x]', (options.currentPage + 1))
+								.replace('[y]', options.numPages)
+							);
+					}
 					
 					// Call pages
 					this._pages();
@@ -142,7 +167,7 @@
 			// Load function
 			that._load = function()
 			{
-				var $table = $(this), // html table
+				var $table = $(this), // jquery table
 					id = $table.attr('id'), // table ID
 					options = $table.data('tp'), // get configuration
 					$cnt = $("[data-tp-target='#" + id + "']"); // control bar container
@@ -160,12 +185,15 @@
 				}
 	
 				// Total rows
-				if(options.subset){
+				var numRows = options.subset?
+					options.subset.length:
+					$table.find('tbody tr').length;
+				
+				// Show all rows
+				if(options.allRows){
 					
-					var numRows = options.subset.length;
-				} else{
-					
-					var numRows = $table.find('tbody tr').length;
+					options.currentPage = 0;
+					options.numRowsPage = numRows;
 				}
 				
 				// Set numPages and numRows
@@ -193,10 +221,6 @@
 				// If total rows is major than num rows per page
 				if(numRows > options.numRowsPage){
 					
-					// Show Select rows
-					$cnt.find('.' + SELECTROWS_CLASS)
-						.show();
-					
 					// Prev arrow
 					var $a = $(A_TAG).addClass(A_CLASS)
 						.attr('href', '#')
@@ -217,12 +241,15 @@
 									
 									options.currentPage = newPage;
 									
+									// Set the state
+									if(options.useHash){
+										
+										state[id] = options.currentPage + ',' + options.numRowsPage;
+										$.bbq.pushState(state);
+									}
+									
 									// Set configuration in data attribute
 									$table.data('tp', $.extend({}, options));
-									
-									// Set the state
-									state[id] = options.currentPage + ',' + options.numRowsPage;
-									$.bbq.pushState(state);
 								}
 								
 								// Trig event
@@ -253,12 +280,15 @@
 										
 										options.currentPage = state[id] = newPage;
 										
+										// Set the state
+										if(options.useHash){
+											
+											state[id] = options.currentPage + ',' + options.numRowsPage;
+											$.bbq.pushState(state);
+										}
+										
 										// Set configuration in data attribute
 										$table.data('tp', $.extend({}, options));
-										
-										// Set the state
-										state[id] = options.currentPage + ',' + options.numRowsPage;
-										$.bbq.pushState(state);
 									}
 									
 									// Trig event
@@ -288,12 +318,15 @@
 									
 									options.currentPage = state[id] = newPage;
 									
+									// Set the state
+									if(options.useHash){
+										
+										state[id] = options.currentPage + ',' + options.numRowsPage;
+										$.bbq.pushState(state);
+									}
+									
 									// Set configuration in data attribute
 									$table.data('tp', $.extend({}, options));
-									
-									// Set the state
-									state[id] = options.currentPage + ',' + options.numRowsPage;
-									$.bbq.pushState(state);
 								}
 							}
 							
@@ -327,7 +360,7 @@
 			// Pages function
 			that._pages = function()
 			{
-				var $table = $(this), // html table
+				var $table = $(this), // jquery table
 					id = $table.attr('id'), // table ID
 					options = $table.data('tp'), // get configuration
 					$cnt = $("[data-tp-target='#" + id + "']"); // control bar container
@@ -356,7 +389,6 @@
 					if(options.maxShowedPages > 0 
 						&& options.maxShowedPages < options.numPages
 					){
-						
 						// Pages to show in control bar
 						var show = options.maxShowedPages / 2;
 						
@@ -376,7 +408,6 @@
 						} else if((options.currentPage - show) >= 0 
 							&& (options.currentPage + show) < options.numPages
 						){
-
 							$slide.slice((options.currentPage - Math.floor(show)), (options.currentPage + Math.ceil(show)))
 								.show();
 						}
@@ -415,52 +446,75 @@
 			// Select function
 			this._selection = function()
 			{
-				var $table = $(this), // html table
+				var $table = $(this), // jquery table
 					id = $table.attr('id'), // table ID
 					options = $table.data('tp'), // get configuration
 					$cnt = $("[data-tp-target='#" + id + "']"); // control bar container
 				
+					var reg = new RegExp('^[0-9]+$');
+					
 				// None ID or configuration or control bar container
 				if(!id || !options || $cnt.length == 0){
 					
 					return false;
 				}
 
+				// Select container
+				var $selecter = $cnt.find('.' + SELECTROWS_CLASS)
+					.empty()
+					.hide();
+				
 				if(options.selectNumRowsPage){
-					
-					// Select container
-					var $selecter = $cnt.find('.' + SELECTROWS_CLASS)
-						.empty()
-						.hide();
 					
 					// Create select
 					var $sel = $('<select>').addClass('form-control')
-						.attr('title', 'Numero di record per pagina')
+						.attr('title', options.selectTitle)
 						.on('change.tp', function(e)
 						{
+							e.preventDefault();
+
 							var num,
 								state = {};
-							
-							if((num = parseInt($(this).val())) > 0){
+								
+							// All rows
+							if($(this).val() == 'all'){
+								
+								options.currentPage = 0;
+								options.numRowsPage = options.subset? 
+									options.subset.length:
+									$table.find('tbody tr').length;
+								options.allRows = true;
+								
+								// Set the state
+								if(options.useHash){
+									
+									state[id] = options.currentPage + ',all';
+									$.bbq.pushState(state);
+								}
+							}
+							// Numeric option
+							else if((num = parseInt($(this).val())) > 0){
 								
 								var righe = (options.currentPage * options.numRowsPage) + 1;
 								var pagina = Math.ceil(righe / num) - 1;
 								
 								options.numRowsPage = num;
 								options.currentPage = pagina;
-								
-								// Set configuration in data attribute
-								$table.data('tp', $.extend({}, options));
+								options.allRows = false;
 								
 								// Set the state
-								state[id] = options.currentPage + ',' + options.numRowsPage;
-								$.bbq.pushState(state);
-								
-								// Call load
-								that._load();
+								if(options.useHash){
+									
+									state[id] = options.currentPage + ',' + options.numRowsPage;
+									$.bbq.pushState(state);
+								}
 							}
 							
-							return false;
+							// Set configuration in data attribute
+							$table.data('tp', $.extend({}, options));
+							
+							// Call load
+							that._load();
 							
 						}).appendTo($selecter);
 					
@@ -468,12 +522,32 @@
 					$('<option value=""></option>').appendTo($sel);
 					for(var i = 0; i < options.selectOptions.length; i++){
 						
-						$('<option value="' + 
-							options.selectOptions[i] + '"' + 
-							(options.numRowsPage == options.selectOptions[i]? ' selected': '') + 
-							'>' + 
-							options.selectOptions[i] + 
-							'</option>').appendTo($sel);
+						if(reg.test(options.selectOptions[i]) === false){
+							
+							$('<option value="all"' + 
+								(options.allRows? ' selected': '') + 
+								'>' + 
+								options.selectOptions[i] + 
+								'</option>').appendTo($sel);
+						} else{
+							
+							$('<option value="' + 
+								options.selectOptions[i] + '"' + 
+								(options.numRowsPage == options.selectOptions[i]? ' selected': '') + 
+								'>' + 
+								options.selectOptions[i] + 
+								'</option>').appendTo($sel);
+						}
+					}
+				}
+				
+				// Show Select rows
+				if($selecter.find('select').length){
+					
+					if(options.allRows || options.selectNumRowsPage){
+						
+						$cnt.find('.' + SELECTROWS_CLASS)
+							.show();
 					}
 				}
 			};
@@ -503,11 +577,11 @@
 		// iterates over all tables, 
 		// getting their appropriate url from the
 		// current state.
-		$(window).bind('hashchange.pagination', function(e)
+		$(window).bind('hashchange.tp', function(e)
 		{
 			$this.each(function()
 			{
-				var $table = $(this), // html table
+				var $table = $(this), // jquery table
 					id = $table.attr('id'), // table ID
 					options = $table.data('tp'); // get configuration
 				
@@ -519,25 +593,37 @@
 				
 				// Get the state
 				var state = $.bbq.getState(id) || '';
-				
-				if(state != '' && state.indexOf(',') != -1){
+
+				if(options.useHash && state != '' && state.indexOf(',') != -1){
 					
 					var parts = state.split(',', 2);
 					
-					if(options.currentPage == parts[0]
-						&& options.numRowsPage == parts[1]
-					){
-						return;
+					if(parts[1] == 'all'){
+						
+						options.currentPage = 0;
+						options.numRowsPage = options.subset? 
+							options.subset.length:
+							$table.find('tbody tr').length;
+						options.allRows = true;
+					} else{
+						
+						if(options.currentPage == parts[0]
+							&& options.numRowsPage == parts[1]
+						){
+							return;
+						}
+						
+						options.currentPage = parseInt(parts[0]);
+						options.numRowsPage = parseInt(parts[1]);
+						options.allRows = false;
 					}
-					
-					options.currentPage = parseInt(parts[0]);
-					options.numRowsPage = parseInt(parts[1]);
 				} else{
 					
 					var def = $table.data('tpdef');
 					
 					options.currentPage = def.currentPage || 0;
 					options.numRowsPage = def.numRowsPage || 10;
+					options.allRows = false;
 				}
 				
 				// Set configuration in data attribute
@@ -550,7 +636,7 @@
 
 		// Since the event is only triggered when the hash changes, we need to trigger
 		// the event now, to handle the hash the page may have loaded with.
-		$(window).trigger('hashchange.pagination');
+		$(window).trigger('hashchange.tp');
 		
 		return $this;
 	};
