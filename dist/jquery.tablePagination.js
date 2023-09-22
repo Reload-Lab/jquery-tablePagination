@@ -2,8 +2,8 @@
  * jQuery tablePagination Plugin
  * https://github.com/Reload-Lab/jquery-tablePagination
  *
- * @updated September 21, 2023
- * @version 1.0.0
+ * @updated September 22, 2023
+ * @version 1.0.1
  *
  * @author Domenico Gigante <domenico.gigante@reloadlab.it>
  * @copyright (c) 2023 Reload Laboratorio Multimediale <info@reloadlab.it> (https://www.reloadlab.it)
@@ -54,7 +54,9 @@
 				selectNumRowsPage: true, // Select enabled
 				selectOptions: [10, 25, 50, 100, 'Tutte'], // Select options
 				selectTitle: 'Numero di righe per pagina', // Select title attribute
-				useHash: true // use hashchange event and back button
+				useHash: true, // use hashchange event and back button
+				onPage: null, // function call on change page
+				onSelect: null // function call on select num rows per page
 			}, arguments[0]);
 		} 
 		
@@ -234,10 +236,11 @@
 							if(!$(this).hasClass(DISABLED_CLASS)){
 								
 								// Set new current page
-								var newPage,
-									state = {};
-								var actualPage = $ctrl.find('.' + LI_CLASS + '.' + ACTIVE_CLASS);
-								if((newPage = parseInt(actualPage.attr('data-tp-num')) - 2) >= 0){
+								var state = {},
+									actualPage = $ctrl.find('.' + LI_CLASS + '.' + ACTIVE_CLASS)
+										.attr('data-tp-num'),
+									newPage = parseInt(actualPage) - 2;
+								if(newPage >= 0){
 									
 									options.currentPage = newPage;
 									
@@ -254,6 +257,13 @@
 								
 								// Trig event
 								$table.trigger('paginate');
+								
+								// If onPage function exists...
+								if(typeof options.onPage === 'function'){
+									
+									// Execute onPage function
+									options.onPage($table, actualPage, (newPage + 1));
+								}
 							}
 						})
 						.appendTo($ctrl);
@@ -274,11 +284,13 @@
 								// Set new current page
 								if(!$(this).hasClass(DISABLED_CLASS)){
 									
-									var newPage,
-										state = {};
-									if((newPage = parseInt($(this).attr('data-tp-num')) - 1) >= 0){
+									var state = {},
+										actualPage = $ctrl.find('.' + LI_CLASS + '.' + ACTIVE_CLASS)
+											.attr('data-tp-num'),
+										newPage = parseInt($(this).attr('data-tp-num')) - 1;
+									if(newPage >= 0){
 										
-										options.currentPage = state[id] = newPage;
+										options.currentPage = newPage;
 										
 										// Set the state
 										if(options.useHash){
@@ -293,6 +305,13 @@
 									
 									// Trig event
 									$table.trigger('paginate');
+									
+									// If onPage function exists...
+									if(typeof options.onPage === 'function'){
+										
+										// Execute onPage function
+										options.onPage($table, actualPage, (newPage + 1));
+									}
 								}
 							})
 							.appendTo($ctrl);
@@ -311,10 +330,11 @@
 							if(!$(this).hasClass(DISABLED_CLASS)){
 								
 								// Set new current page
-								var newPage,
-									state = {};
-								var actualPage = $ctrl.find('.' + LI_CLASS + '.' + ACTIVE_CLASS);
-								if((newPage = parseInt(actualPage.attr('data-tp-num'))) < options.numPages){
+								var state = {},
+									actualPage = $ctrl.find('.' + LI_CLASS + '.' + ACTIVE_CLASS)
+										.attr('data-tp-num'),
+									newPage = parseInt(actualPage);
+								if(newPage < options.numPages){
 									
 									options.currentPage = state[id] = newPage;
 									
@@ -328,10 +348,17 @@
 									// Set configuration in data attribute
 									$table.data('tp', $.extend({}, options));
 								}
-							}
 							
-							// Trig event
-							$table.trigger('paginate');
+								// Trig event
+								$table.trigger('paginate');
+								
+								// If onPage function exists...
+								if(typeof options.onPage === 'function'){
+									
+									// Execute onPage function
+									options.onPage($table, actualPage, (newPage + 1));
+								}
+							}
 						})
 						.appendTo($ctrl);
 						
@@ -516,6 +543,12 @@
 							// Call load
 							that._load();
 							
+							// If onSelect function exists...
+							if(typeof options.onSelect === 'function'){
+								
+								// Execute onSelect function
+								options.onSelect($table, $(this).val());
+							}
 						}).appendTo($selecter);
 					
 					// Create options
